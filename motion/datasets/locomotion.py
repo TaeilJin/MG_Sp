@@ -1,9 +1,12 @@
 import os
 import numpy as np
+
+import motion
 from .motion_data import MotionDataset, TestDataset
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
-from visualization.plot_animation import plot_animation, save_animation_BVH
+from visualization.plot_animation import plot_animation, save_animation_BVH, plot_animation_withRef
+from scipy.spatial.distance import pdist
 
 def mirror_data(data):
     aa = data.copy()
@@ -113,6 +116,63 @@ class Locomotion():
         self.seqlen = hparams.Data.seqlen
         self.n_x_channels = all_test_data.shape[2]-3
         self.n_cond_channels = self.n_x_channels*hparams.Data.seqlen + 3*(hparams.Data.seqlen + 1 + hparams.Data.n_lookahead)
+
+    def save_APD_Score(self, control_data, K_motion_data, totalClips,filename):
+        np.savez(filename + "_APD_testdata.npz", clips=K_motion_data)
+        #K_motion_data = np.load("../data/results/locomotion/MG/log_20211103_1638/0_sampled_temp100_0k_APD_testdata.npz")['clips'].astype(np.float32)
+        K, nn, ntimesteps, feature = K_motion_data.shape
+        total_APD_score = np.zeros(nn)
+        if totalClips != K:
+            print("wrong! different motions")
+        else :
+            for nBatch in range(nn):
+                k_motion_data = K_motion_data[:,nBatch,...]
+                batch_control_data = control_data[nBatch:nBatch+1,...]
+                k_control_data = np.repeat(batch_control_data,K,axis=0)
+
+                apd_score = self.calculate_APD(k_control_data,k_motion_data)
+
+                total_APD_score[nBatch] = apd_score
+            print(f'APD of_{nn}_motion:_{total_APD_score.shape}_:{total_APD_score}_mean:{np.mean(total_APD_score)}')    
+            np.savez(filename + "_APD_score.npz", clips=total_APD_score)
+            
+        
+    def calculate_APD(self, control_data, motion_data):
+        animation_data = np.concatenate((motion_data,control_data), axis=2)
+        anim_clip = inv_standardize(animation_data, self.scaler)
+        
+        motion_clip = anim_clip[...,:-3]/ 20.0
+
+        motion_clip = np.reshape(motion_clip,(motion_clip.shape[0],-1))
+        
+        dist = pdist(motion_clip)
+
+        apd = dist.mean().item()
+
+        # #check
+        # apd =0
+        # n_clips = min(self.n_test, anim_clip.shape[0])
+        # for i in range(0,n_clips):
+        #     filename_ = f'test_{str(i)}.mp4'
+        #     print('writing:' + filename_)
+        #     parents = np.array([0,1,2,3,4,1,6,7,8,1,10,11,12,12,14,15,16,12,18,19,20]) - 1
+        #     plot_animation(anim_clip[i,self.seqlen:,:], parents, filename_, fps=self.frame_rate, axis_scale=60)
+
+        return (apd)
+
+    def save_animation_withRef(self, control_data, motion_data, refer_data, filename):
+        animation_data = np.concatenate((motion_data,control_data), axis=2)
+        reference_data = np.concatenate((refer_data,control_data), axis=2)
+
+        anim_clip = inv_standardize(animation_data, self.scaler)
+        ref_clip = inv_standardize(reference_data,self.scaler)
+        np.savez(filename + ".npz", clips=anim_clip)
+        n_clips = min(self.n_test, anim_clip.shape[0])
+        for i in range(0,n_clips):
+            filename_ = f'{filename}_{str(i)}.mp4'
+            print('writing:' + filename_)
+            parents = np.array([0,1,2,3,4,1,6,7,8,1,10,11,12,12,14,15,16,12,18,19,20]) - 1
+            plot_animation_withRef(anim_clip[i,self.seqlen:,:],ref_clip[i,self.seqlen:,:], parents, filename_, fps=self.frame_rate, axis_scale=60)
 
     def save_animation(self, control_data, motion_data, filename):
         animation_data = np.concatenate((motion_data,control_data), axis=2)

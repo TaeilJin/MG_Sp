@@ -15,7 +15,7 @@ from glow.trainer import Trainer
 from glow.generator import Generator
 from glow.config import JsonConfig
 from torch.utils.data import DataLoader
-
+import torch
 if __name__ == "__main__":
     # args = docopt(__doc__)
     # hparams = args["<hparams>"]
@@ -60,9 +60,17 @@ if __name__ == "__main__":
             temp = hparams.Infer.temperature
         else:
             temp = 1
-            
+
+        # origin_apd = T1_apd = np.load('../data/results/test_moGlow/0_sampled_temp100_0k_APD_score.npz')['clips'].astype(np.float32)
+        # mean_origin_apd = np.mean(origin_apd)
+        # T1_apd = np.load('../data/results/test_moGlow_T1/0_sampled_temp100_0k_APD_score.npz')['clips'].astype(np.float32) 
+        # mean_origin_T1_apd = np.mean(T1_apd)  
+        
         # We generate x times to get some different variations for each input
-        for i in range(5):            
-            generator.generate_sample(built['graph'],eps_std=temp, counter=i)
+        torch.manual_seed(42)
+        with torch.no_grad():
+            generator.generate_APD_perBatch(built['graph'],eps_std=temp,counter=0)
+            # for i in range(5):            
+            #     generator.generate_sample_withRef(built['graph'],eps_std=temp, counter=i)
             
 

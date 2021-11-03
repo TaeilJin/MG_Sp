@@ -215,7 +215,7 @@ class Trainer(object):
                          
                 # generate samples and save
                 if self.global_step % self.plot_gaps == 0 and self.global_step > 0:   
-                    self.generator.generate_sample(self.graph, eps_std=1.0, step=self.global_step)
+                    self.generator.generate_sample_withRef(self.graph, eps_std=1.0, step=self.global_step)
 
                 # global step
                 self.global_step += 1

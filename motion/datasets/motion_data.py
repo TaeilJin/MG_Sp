@@ -28,11 +28,13 @@ class MotionDataset(Dataset):
                     
         # Control for n previous frames + current frame
         control = self.concat_sequence(seqlen_control, control_data)
+        #control = self.concat_sequence(1, control_data[:,seqlen:n_frames-n_lookahead,:]) # maske single control
 
         # conditioning
         
         print("autoreg:" + str(autoreg.shape))        
         print("control:" + str(control.shape))        
+        #new_cond = control # np.concatenate((autoreg,control),axis=2)
         new_cond = np.concatenate((autoreg,control),axis=2)
 
         # joint positions for the current frame
@@ -97,8 +99,9 @@ class MotionDataset(Dataset):
             mask = np.repeat(keep_pose, n_feats, axis = 0)
             mask = np.concatenate((mask, mask_cond), axis=0)
             #print(mask)
+            
 
-            cond_masked = cond_masked*mask
+            #cond_masked = cond_masked*mask
             sample = {'x': self.x[idx,:,:], 'cond': cond_masked}
         else:
             sample = {'x': self.x[idx,:,:], 'cond': self.cond[idx,:,:]}
